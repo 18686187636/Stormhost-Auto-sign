@@ -9,7 +9,6 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.network.connection.tcpabridged import ConnectionTcpAbridged
 
-# 读取环境变量（直接使用原始 SESSION_STRING）
 API_ID = int(os.environ.get('TG_API_ID', '0').strip())
 API_HASH = os.environ.get('TG_API_HASH', '').strip()
 SESSION_STRING = os.environ.get('TG_SESSION_STRING', '').strip()
@@ -25,7 +24,6 @@ if len(SESSION_STRING) < 50:
     print("⚠️ SESSION_STRING 过短，可能无效")
     sys.exit(1)
 
-# 解析代理
 proxy = None
 if PROXY_SERVER:
     parsed = urlparse(PROXY_SERVER)
@@ -38,7 +36,6 @@ if PROXY_SERVER:
     if proxy:
         print(f"🔌 使用代理: {PROXY_SERVER}")
 
-# 创建客户端
 client = TelegramClient(
     StringSession(SESSION_STRING),
     API_ID,
@@ -49,9 +46,7 @@ client = TelegramClient(
 
 async def main():
     try:
-        # 仅连接，不自动登录
         await client.connect()
-        # 检查是否已授权
         if not await client.is_user_authorized():
             print("❌ 会话未授权。")
             print("可能原因：")
@@ -61,17 +56,14 @@ async def main():
             sys.exit(1)
         print("✅ 会话授权检查通过")
 
-        # 显式启动（此时不会再提示输入手机号）
         await client.start()
         print("✅ 登录成功")
         me = await client.get_me()
         print(f"👤 登录用户: {me.first_name} (@{me.username or '无用户名'})")
-
     except Exception as e:
         print(f"❌ 登录失败: {e}")
         sys.exit(1)
 
-    # 获取机器人
     bot = await client.get_entity("@stormuser_bot")
     print(f"📌 找到机器人: {bot.first_name} (ID: {bot.id})")
 
