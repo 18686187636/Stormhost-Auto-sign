@@ -170,16 +170,14 @@ jobs:
       - name: Test proxy IP
         if: env.NODE_LINK != ''
         run: |
-          echo "🌐 Testing proxy出口IP..."
+          echo "🌐 代理出口 IP:"
           export http_proxy="http://127.0.0.1:1081"
           export https_proxy="http://127.0.0.1:1081"
           IP=$(curl -s --max-time 10 https://api.ipify.org)
           if [ -n "$IP" ]; then
             echo "✅ 代理出口 IP: $IP"
           else
-            echo "⚠️ 通过代理获取 IP 失败，尝试直连..."
-            IP_DIRECT=$(curl -s --max-time 10 https://api.ipify.org)
-            echo "直连 IP: $IP_DIRECT"
+            echo "⚠️ 代理请求失败"
           fi
 
       - name: Print sing-box log
@@ -190,7 +188,6 @@ jobs:
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
-          TG_SESSION_STRING_B64: ${{ secrets.TG_SESSION_STRING_B64 }}
           TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
           PROXY_SERVER: ${{ secrets.NODE_LINK != '' && 'http://127.0.0.1:1081' || '' }}
         run: |
