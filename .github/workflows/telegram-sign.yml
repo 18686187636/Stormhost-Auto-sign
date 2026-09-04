@@ -20,9 +20,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install telethon
+          pip install telethon python-socks[asyncio]   # ← 添加 python-socks
 
-      # ---------- 代理配置（来自您的参考工作流） ----------
+      # ---------- 代理配置 ----------
       - name: Configure sing-box proxy
         if: env.NODE_LINK != ''
         env:
@@ -146,12 +146,12 @@ jobs:
         if: always()
         run: cat sing-box.log || true
 
-      # ---------- 运行签到脚本（使用正确的 Secret 名称） ----------
+      # ---------- 运行签到脚本 ----------
       - name: Run sign-in
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
-          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}   # ← 修正为您的实际 Secret 名
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
           PROXY_SERVER: ${{ secrets.NODE_LINK != '' && 'http://127.0.0.1:1081' || '' }}
         run: |
           python sign.py
