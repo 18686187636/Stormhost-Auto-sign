@@ -4,7 +4,6 @@ import os
 import sys
 import asyncio
 import time
-import base64
 from urllib.parse import urlparse
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -13,32 +12,20 @@ from telethon.network.connection.tcpabridged import ConnectionTcpAbridged
 # 读取环境变量
 API_ID = int(os.environ.get('TG_API_ID', '0').strip())
 API_HASH = os.environ.get('TG_API_HASH', '').strip()
-
-# 优先使用 Base64 版本，若不存在则使用原始 SESSION_STRING
-SESSION_B64 = os.environ.get('TG_SESSION_STRING_B64', '').strip()
-SESSION_RAW = os.environ.get('TG_SESSION_STRING', '').strip()
-
-if SESSION_B64:
-    try:
-        session_str = base64.b64decode(SESSION_B64).decode()
-    except Exception as e:
-        print(f"❌ Base64 解码失败: {e}")
-        sys.exit(1)
-elif SESSION_RAW:
-    session_str = SESSION_RAW
-else:
-    print("❌ 缺少必要的环境变量：请设置 TG_SESSION_STRING_B64 或 TG_SESSION_STRING")
-    sys.exit(1)
-
+SESSION_STRING = os.environ.get('TG_SESSION_STRING', '').strip()
 PROXY_SERVER = os.environ.get('PROXY_SERVER', '').strip()  # 如 http://127.0.0.1:1081
 
+if not all([API_ID, API_HASH, SESSION_STRING]):
+    print("❌ 缺少必要的环境变量：请设置 TG_API_ID, TG_API_HASH, TG_SESSION_STRING")
+    sys.exit(1)
+
 print(f"API_ID 长度: {len(str(API_ID))}, API_HASH 长度: {len(API_HASH)}")
-print(f"SESSION_STRING 长度: {len(session_str)} 字符")
-if len(session_str) < 50:
+print(f"SESSION_STRING 长度: {len(SESSION_STRING)} 字符")
+if len(SESSION_STRING) < 50:
     print("⚠️ SESSION_STRING 过短，可能无效")
     sys.exit(1)
 
-# 解析代理
+# 解析代理（支持 http 和 socks5）
 proxy = None
 if PROXY_SERVER:
     parsed = urlparse(PROXY_SERVER)
@@ -53,7 +40,7 @@ if PROXY_SERVER:
 
 # 创建客户端（传入代理）
 client = TelegramClient(
-    StringSession(session_str),
+    StringSession(SESSION_STRING),
     API_ID,
     API_HASH,
     proxy=proxy,
