@@ -168,16 +168,19 @@ jobs:
           fi
 
       - name: Test proxy IP
-        if: env.NODE_LINK != ''
         run: |
-          echo "🌐 代理出口 IP:"
-          export http_proxy="http://127.0.0.1:1081"
-          export https_proxy="http://127.0.0.1:1081"
-          IP=$(curl -s --max-time 10 https://api.ipify.org)
-          if [ -n "$IP" ]; then
-            echo "✅ 代理出口 IP: $IP"
+          if netstat -tuln | grep -q ':1081'; then
+            echo "🌐 代理已启动，测试出口 IP..."
+            export http_proxy="http://127.0.0.1:1081"
+            export https_proxy="http://127.0.0.1:1081"
+            IP=$(curl -s --max-time 10 https://api.ipify.org)
+            if [ -n "$IP" ]; then
+              echo "✅ 代理出口 IP: $IP"
+            else
+              echo "⚠️ 通过代理获取 IP 失败"
+            fi
           else
-            echo "⚠️ 代理请求失败"
+            echo "⚠️ 代理未启动，跳过 IP 测试"
           fi
 
       - name: Print sing-box log
