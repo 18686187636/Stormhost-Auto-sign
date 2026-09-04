@@ -2,8 +2,8 @@ name: Telegram Auto Sign
 
 on:
   schedule:
-    - cron: '0 1 * * *'          # 每天 UTC 01:00 (北京时间 09:00)
-  workflow_dispatch:             # 支持手动触发
+    - cron: '0 1 * * *'
+  workflow_dispatch:
 
 jobs:
   sign:
@@ -20,9 +20,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install telethon python-socks[asyncio]   # ← 添加 python-socks
+          pip install telethon python-socks[asyncio]
 
-      # ---------- 代理配置 ----------
       - name: Configure sing-box proxy
         if: env.NODE_LINK != ''
         env:
@@ -30,17 +29,46 @@ jobs:
         run: |
           set -e
           echo "⬇️ Downloading sing-box binary..."
-          LATEST_URL=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | \
-            grep -o '"browser_download_url": "[^"]*linux-amd64[^"]*"' | \
-            grep -v 'alpha\|beta\|rc' | head -1 | sed 's/"browser_download_url": "//' | sed 's/"//')
-          if [ -z "$LATEST_URL" ]; then echo "❌ Failed to get download URL"; exit 1; fi
-          curl -L -o sing-box.tar.gz "$LATEST_URL" --connect-timeout 30 --max-time 60
+          # 使用 jq 解析最新版本（更可靠）
+          for i in {1..3}; do
+            echo "Attempt $i/3 to fetch latest release..."
+            LATEST_URL=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | \
+              jq -r '.assets[] | select(.name | contains("linux-amd64") and (contains("alpha") or contains("beta") or contains("rc") | not)) | .browser_download_url' | head -1)
+            if [ -n "$LATEST_URL" ]; then
+              echo "✅ Found download URL: $LATEST_URL"
+              break
+            fi
+            echo "⚠️ Retrying after 3 seconds..."
+            sleep 3
+          done
+
+          if [ -z "$LATEST_URL" ]; then
+            echo "❌ Failed to get download URL, falling back to fixed version v1.11.0"
+            LATEST_URL="https://github.com/SagerNet/sing-box/releases/download/v1.11.0/sing-box-1.11.0-linux-amd64.tar.gz"
+          fi
+
+          # 下载（带重试）
+          for i in {1..3}; do
+            echo "Downloading attempt $i/3..."
+            curl -L -o sing-box.tar.gz "$LATEST_URL" --connect-timeout 30 --max-time 60
+            if [ -f sing-box.tar.gz ] && file sing-box.tar.gz | grep -q 'gzip compressed data'; then
+              echo "✅ Download successful"
+              break
+            fi
+            echo "⚠️ Download failed, retrying..."
+            rm -f sing-box.tar.gz
+            sleep 3
+          done
+
+          [ -f sing-box.tar.gz ] || { echo "❌ Download failed, skipping proxy"; exit 0; }
           tar -xzf sing-box.tar.gz
           SING_BOX_DIR=$(find . -maxdepth 1 -type d -name "sing-box-*" | head -1)
+          [ -z "$SING_BOX_DIR" ] && { echo "❌ Extraction failed"; exit 1; }
           sudo mv "$SING_BOX_DIR/sing-box" /usr/local/bin/
           sudo chmod +x /usr/local/bin/sing-box
           rm -rf sing-box.tar.gz "$SING_BOX_DIR"
 
+          # 生成配置（和之前一样）
           echo "📝 Parsing vless link and generating config..."
           python3 << 'PYEOF'
           import json, sys, os, re
@@ -146,7 +174,6 @@ jobs:
         if: always()
         run: cat sing-box.log || true
 
-      # ---------- 运行签到脚本 ----------
       - name: Run sign-in
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
